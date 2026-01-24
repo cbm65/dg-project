@@ -111,6 +111,17 @@ h1 {
   background: #4ade80;
   padding: 14px;
   border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.tee-time:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.tee-time:active {
+  transform: translateY(0);
 }
 
 .tee-time .time {
@@ -134,6 +145,13 @@ h1 {
 
 .tee-time .spots {
   opacity: 0.8;
+}
+
+.booking-hint {
+  text-align: center;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  margin-top: 16px;
 }
 
 .loading, .no-times {

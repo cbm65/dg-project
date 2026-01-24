@@ -88,6 +88,13 @@ function App() {
     }
   }
 
+  const openBooking = () => {
+    window.open(
+      `https://app.membersports.com/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/0/1/0`,
+      '_blank'
+    )
+  }
+
   useEffect(() => {
     fetchTeeTimes()
   }, [selectedCourse, date])
@@ -154,17 +161,20 @@ function App() {
       ) : teeTimes.length === 0 ? (
         <p className="no-times">No available tee times</p>
       ) : (
-        <div className="tee-times">
-          {teeTimes.map((t, i) => (
-            <div key={i} className="tee-time">
-              <div className="time">{t.time_display}</div>
-              <div className="details">
-                <span className="course-type">{t.course_name.split(' ').slice(-2).join(' ')}</span>
-                <span className="spots">{t.spots_available} spots</span>
+        <>
+          <div className="tee-times">
+            {teeTimes.map((t, i) => (
+              <div key={i} className="tee-time" onClick={openBooking}>
+                <div className="time">{t.time_display}</div>
+                <div className="details">
+                  <span className="course-type">{t.course_name.split(' ').slice(-2).join(' ')}</span>
+                  <span className="spots">{t.spots_available} spots</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <p className="booking-hint">Tap a time to book on Denver Golf</p>
+        </>
       )}
     </div>
   )
