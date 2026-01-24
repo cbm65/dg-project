@@ -2,17 +2,10 @@
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  min-height: 100vh;
-}
-
 .app {
+  width: 100%;
   max-width: 700px;
-  margin: 0 auto;
   padding: 20px;
-  font-family: system-ui, sans-serif;
 }
 
 h1 {
@@ -38,7 +31,6 @@ h1 {
 
 .controls select, .controls input {
   background: white;
-  min-width: 140px;
 }
 
 .controls button {
@@ -94,11 +86,13 @@ h1 {
   }
   
   .controls {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
   
-  .controls select, .controls input, .controls button {
-    width: 100%;
+  .controls button {
+    grid-column: 1 / -1;
   }
   
   .tee-times {
