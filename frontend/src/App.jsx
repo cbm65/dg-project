@@ -36,7 +36,6 @@ function App() {
   const [selectedCourse, setSelectedCourse] = useState(COURSES[3])
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   
-  // Alert form state
   const [showAlertForm, setShowAlertForm] = useState(false)
   const [alertPhone, setAlertPhone] = useState('')
   const [alertTimeStart, setAlertTimeStart] = useState(420)
@@ -161,8 +160,7 @@ function App() {
               <div className="time">{t.time_display}</div>
               <div className="details">
                 <span className="course-type">{t.course_name.split(' ').slice(-2).join(' ')}</span>
-                <span>{t.spots_available} spots</span>
-                <span>${t.price}</span>
+                <span className="spots">{t.spots_available} spots</span>
               </div>
             </div>
           ))}

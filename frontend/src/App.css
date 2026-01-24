@@ -121,15 +121,19 @@ h1 {
 
 .tee-time .details {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 11px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
 }
 
 .tee-time .course-type {
   background: rgba(0,0,0,0.15);
   padding: 3px 6px;
   border-radius: 4px;
+}
+
+.tee-time .spots {
+  opacity: 0.8;
 }
 
 .loading, .no-times {
