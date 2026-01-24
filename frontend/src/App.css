@@ -39,6 +39,68 @@ h1 {
   cursor: pointer;
 }
 
+.alert-toggle {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  background: #fbbf24;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alert-form {
+  background: rgba(255,255,255,0.1);
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.alert-form p {
+  color: white;
+  margin: 0 0 12px 0;
+}
+
+.alert-fields {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.alert-fields input, .alert-fields select {
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.alert-fields input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.alert-fields .to-label {
+  color: white;
+}
+
+.alert-fields button {
+  padding: 10px 16px;
+  background: #4ade80;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alert-status {
+  margin-top: 10px;
+  color: #4ade80;
+}
+
 .tee-times {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -93,6 +155,18 @@ h1 {
   
   .controls button {
     grid-column: 1 / -1;
+  }
+
+  .alert-fields {
+    flex-direction: column;
+  }
+
+  .alert-fields input, .alert-fields select, .alert-fields button {
+    width: 100%;
+  }
+
+  .alert-fields .to-label {
+    display: none;
   }
   
   .tee-times {
