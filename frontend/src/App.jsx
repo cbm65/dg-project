@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
+const API_URL = import.meta.env.PROD 
+  ? 'https://api.denvertts303.com' 
+  : 'http://localhost:8000'
+
 const COURSES = [
   { club_id: 3660, course_id: 4711, name: "City Park" },
   { club_id: 3691, course_id: 4756, name: "Evergreen" },
@@ -21,7 +25,7 @@ function App() {
     setLoading(true)
     try {
       const res = await fetch(
-        `http://localhost:8000/api/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/${date}`
+        `${API_URL}/api/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/${date}`
       )
       const data = await res.json()
       setTeeTimes(data)
