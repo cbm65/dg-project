@@ -1,32 +1,27 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/dg_golf")
 
-engine = create_engine(os.getenv("DATABASE_URL"))
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
-class TeeTime(Base):
-    __tablename__ = "tee_times"
+class Alert(Base):
+    __tablename__ = "alerts"
     
-    id = Column(Integer, primary_key=True)
-    course_id = Column(Integer, index=True)
-    course_name = Column(String)
-    date = Column(String, index=True)
-    time_minutes = Column(Integer)  # minutes from midnight
-    time_display = Column(String)   # "10:00 AM"
-    available = Column(Boolean, default=True)
-    scraped_at = Column(DateTime)
+    id = Column(Integer, primary_key=True, index=True)
+    phone = Column(String, nullable=False)
+    club_id = Column(Integer, nullable=False)
+    course_name = Column(String, nullable=False)
+    date = Column(String, nullable=False)
+    time_start = Column(Integer, nullable=False)  # minutes from midnight
+    time_end = Column(Integer, nullable=False)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    notified_at = Column(DateTime, nullable=True)
 
-class Course(Base):
-    __tablename__ = "courses"
-    
-    id = Column(Integer, primary_key=True)
-    club_id = Column(Integer, unique=True)
-    name = Column(String)
-
-Base.metadata.create_all(engine)
+Base.metadata.create_all(bind=engine)
