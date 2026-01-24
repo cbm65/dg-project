@@ -125,7 +125,7 @@ function App() {
 
       {showAlertForm && (
         <div className="alert-form">
-          <p>Get a text when tee times become available:</p>
+          <p>Get a text when tee times at <strong>{selectedCourse.name}</strong> on <strong>{date}</strong> become available:</p>
           <div className="alert-fields">
             <input
               type="tel"
