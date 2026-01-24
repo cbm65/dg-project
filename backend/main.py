@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from twilio.rest import Client
 import os
+import asyncio
 
 from scraper import COURSES, get_available_times
 from models import SessionLocal, Alert
@@ -33,22 +33,32 @@ TWILIO_MESSAGING_SERVICE_SID = os.getenv("TWILIO_MESSAGING_SERVICE_SID")
 def send_sms(to: str, body: str):
     if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID]):
         print("Twilio not configured")
-        return
-    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    client.messages.create(
-        messaging_service_sid=TWILIO_MESSAGING_SERVICE_SID,
-        body=body,
-        to=to
-    )
+        return False
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        client.messages.create(
+            messaging_service_sid=TWILIO_MESSAGING_SERVICE_SID,
+            body=body,
+            to=to
+        )
+        print(f"SMS sent to {to}")
+        return True
+    except Exception as e:
+        print(f"SMS error: {e}")
+        return False
 
 async def check_alerts():
+    print("Checking alerts...")
     db = SessionLocal()
     try:
         alerts = db.query(Alert).filter(Alert.active == True, Alert.notified_at == None).all()
+        print(f"Found {len(alerts)} active alerts")
         for alert in alerts:
             course = next((c for c in COURSES if c["club_id"] == alert.club_id), None)
             if not course:
+                print(f"Course not found for alert {alert.id}")
                 continue
+            print(f"Checking alert {alert.id} for {alert.course_name} on {alert.date}")
             times = await get_available_times(
                 alert.club_id, 
                 course["course_id"], 
@@ -56,12 +66,16 @@ async def check_alerts():
                 alert.date
             )
             matching = [t for t in times if alert.time_start <= t["time_minutes"] <= alert.time_end]
+            print(f"Found {len(matching)} matching times")
             if matching:
                 time_list = ", ".join([t["time_display"] for t in matching[:5]])
                 msg = f"⛳ Tee times available at {alert.course_name} on {alert.date}: {time_list}"
-                send_sms(alert.phone, msg)
-                alert.notified_at = datetime.utcnow()
-                db.commit()
+                if send_sms(alert.phone, msg):
+                    alert.notified_at = datetime.utcnow()
+                    db.commit()
+                    print(f"Alert {alert.id} notified")
+    except Exception as e:
+        print(f"Error checking alerts: {e}")
     finally:
         db.close()
 
@@ -70,11 +84,12 @@ scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def start_scheduler():
-    import asyncio
     def run_check():
+        print("Scheduler triggered")
         asyncio.run(check_alerts())
     scheduler.add_job(run_check, 'interval', minutes=5)
     scheduler.start()
+    print("Scheduler started")
 
 @app.on_event("shutdown")
 def stop_scheduler():
@@ -88,15 +103,6 @@ class AlertCreate(BaseModel):
     date: str
     time_start: int
     time_end: int
-
-class AlertResponse(BaseModel):
-    id: int
-    phone: str
-    course_name: str
-    date: str
-    time_start: int
-    time_end: int
-    active: bool
 
 # Routes
 @app.get("/api/courses")
@@ -133,15 +139,7 @@ async def get_alerts(phone: str):
     db = SessionLocal()
     try:
         alerts = db.query(Alert).filter(Alert.phone == phone, Alert.active == True).all()
-        return [AlertResponse(
-            id=a.id,
-            phone=a.phone,
-            course_name=a.course_name,
-            date=a.date,
-            time_start=a.time_start,
-            time_end=a.time_end,
-            active=a.active
-        ) for a in alerts]
+        return [{"id": a.id, "course_name": a.course_name, "date": a.date, "time_start": a.time_start, "time_end": a.time_end} for a in alerts]
     finally:
         db.close()
 
@@ -157,3 +155,15 @@ async def delete_alert(alert_id: int):
         return {"message": "Alert deleted"}
     finally:
         db.close()
+
+@app.post("/api/test-alerts")
+async def test_alerts():
+    """Manually trigger alert check"""
+    await check_alerts()
+    return {"message": "Alert check completed"}
+
+@app.post("/api/test-sms/{phone}")
+async def test_sms(phone: str):
+    """Send a test SMS"""
+    success = send_sms(phone, "⛳ Test message from Denver Golf Tee Times!")
+    return {"success": success}
