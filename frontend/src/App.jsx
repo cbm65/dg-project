@@ -76,6 +76,11 @@ function App() {
         `https://www.chronogolf.com/club/${selectedCourse.booking_slug}?date=${date}`,
         '_blank'
       )
+    } else if (selectedCourse.provider === 'ezlinks') {
+      window.open(
+        `https://cityofaurora.ezlinksgolf.com/index.html#/search`,
+        '_blank'
+      )
     } else {
       window.open(
         `https://app.membersports.com/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/0/1/0`,
