@@ -47,7 +47,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: alertPhone.startsWith('+') ? alertPhone : `+1${alertPhone.replace(/\D/g, '')}`,
-          club_id: selectedCourse.club_id,
+          club_id: selectedCourse.club_id || 0,
           course_name: selectedCourse.name,
           date: date,
           time_start: alertTimeStart,
@@ -71,10 +71,17 @@ function App() {
   }
 
   const openBooking = () => {
-    window.open(
-      `https://app.membersports.com/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/0/1/0`,
-      '_blank'
-    )
+    if (selectedCourse.provider === 'chronogolf') {
+      window.open(
+        `https://www.chronogolf.com/club/south-suburban-golf-club?date=${date}`,
+        '_blank'
+      )
+    } else {
+      window.open(
+        `https://app.membersports.com/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/0/1/0`,
+        '_blank'
+      )
+    }
   }
 
   useEffect(() => {
@@ -89,7 +96,7 @@ function App() {
     const fetchTimes = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`${API_URL}/api/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/${date}`)
+        const res = await fetch(`${API_URL}/api/tee-times/${encodeURIComponent(selectedCourse.name)}/${date}`)
         setTeeTimes(await res.json())
       } catch (e) {
         console.error(e)
@@ -106,11 +113,11 @@ function App() {
       
       <div className="controls">
         <select 
-          value={selectedCourse?.club_id || ''} 
-          onChange={(e) => setSelectedCourse(courses.find(c => c.club_id === +e.target.value))}
+          value={selectedCourse?.name || ''} 
+          onChange={(e) => setSelectedCourse(courses.find(c => c.name === e.target.value))}
         >
           {courses.map(c => (
-            <option key={c.club_id} value={c.club_id}>{c.name}</option>
+            <option key={c.name} value={c.name}>{c.name}</option>
           ))}
         </select>
         

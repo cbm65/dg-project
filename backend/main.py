@@ -40,21 +40,13 @@ async def check_alerts():
         alerts = db.query(Alert).filter(Alert.active == True, Alert.notified_at == None, Alert.date >= date.today().isoformat()).all()
         print(f"Found {len(alerts)} active alerts")
         for alert in alerts:
-            course = next((c for c in COURSES if c["club_id"] == alert.club_id and c["name"] == alert.course_name), None)
-            if not course:
-                course = next((c for c in COURSES if c["club_id"] == alert.club_id), None)
+            # Find course by name (works for both providers)
+            course = next((c for c in COURSES if c["name"] == alert.course_name), None)
             if not course:
                 print(f"Course not found for alert {alert.id}")
                 continue
             print(f"Checking alert {alert.id} for {alert.course_name} on {alert.date}")
-            times = await get_available_times(
-                alert.club_id, 
-                course["course_id"], 
-                alert.course_name, 
-                alert.date,
-                course.get("config_type", 1),
-                course.get("group_id", 1)
-            )
+            times = await get_available_times(course, alert.date)
             matching = [t for t in times if alert.time_start <= t["time_minutes"] <= alert.time_end and t["spots_available"] >= alert.min_spots]
             print(f"Found {len(matching)} matching times")
             if matching:
@@ -109,7 +101,7 @@ app.add_middleware(
 # Pydantic models
 class AlertCreate(BaseModel):
     phone: str
-    club_id: int
+    club_id: int = 0  # Optional, for backward compatibility
     course_name: str
     date: str
     time_start: int
@@ -121,15 +113,12 @@ class AlertCreate(BaseModel):
 async def get_courses():
     return COURSES
 
-@app.get("/api/tee-times/{club_id}/{course_id}/{date_str}")
-async def get_tee_times(club_id: int, course_id: int, date_str: str):
-    course = next((c for c in COURSES if c["club_id"] == club_id and c["course_id"] == course_id), None)
+@app.get("/api/tee-times/{course_name}/{date_str}")
+async def get_tee_times(course_name: str, date_str: str):
+    course = next((c for c in COURSES if c["name"] == course_name), None)
     if not course:
-        course = next((c for c in COURSES if c["club_id"] == club_id), None)
-    course_name = course["name"] if course else "Unknown"
-    config_type = course.get("config_type", 1) if course else 1
-    group_id = course.get("group_id", 1) if course else 1
-    return await get_available_times(club_id, course_id, course_name, date_str, config_type, group_id)
+        raise HTTPException(status_code=404, detail="Course not found")
+    return await get_available_times(course, date_str)
 
 @app.post("/api/alerts")
 async def create_alert(alert: AlertCreate, db = Depends(get_db)):
@@ -140,7 +129,7 @@ async def create_alert(alert: AlertCreate, db = Depends(get_db)):
     # Check for duplicate alert
     existing = db.query(Alert).filter(
         Alert.phone == alert.phone,
-        Alert.club_id == alert.club_id,
+        Alert.course_name == alert.course_name,
         Alert.date == alert.date,
         Alert.time_start == alert.time_start,
         Alert.time_end == alert.time_end,
@@ -151,18 +140,9 @@ async def create_alert(alert: AlertCreate, db = Depends(get_db)):
         raise HTTPException(status_code=400, detail="You already have an alert for this exact request")
     
     # Check if matching tee times already exist
-    course = next((c for c in COURSES if c["club_id"] == alert.club_id and c["name"] == alert.course_name), None)
-    if not course:
-        course = next((c for c in COURSES if c["club_id"] == alert.club_id), None)
+    course = next((c for c in COURSES if c["name"] == alert.course_name), None)
     if course:
-        times = await get_available_times(
-            alert.club_id, 
-            course["course_id"], 
-            alert.course_name, 
-            alert.date,
-            course.get("config_type", 1),
-            course.get("group_id", 1)
-        )
+        times = await get_available_times(course, alert.date)
         matching = [t for t in times if alert.time_start <= t["time_minutes"] <= alert.time_end and t["spots_available"] >= alert.min_spots]
         if matching:
             raise HTTPException(status_code=400, detail="There are already tee time(s) that match this request")

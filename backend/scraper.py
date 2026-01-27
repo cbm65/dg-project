@@ -2,25 +2,32 @@ import httpx
 import re
 from datetime import datetime
 
-API_URL = "https://api.membersports.com/api/v1/golfclubs/onlineBookingTeeTimes"
+# MemberSports config
+MEMBERSPORTS_API_URL = "https://api.membersports.com/api/v1/golfclubs/onlineBookingTeeTimes"
 NGSW_URL = "https://app.membersports.com/ngsw.json"
 APP_BASE_URL = "https://app.membersports.com"
 
-# Mutable API key that can be refreshed
+# Chronogolf config
+CHRONOGOLF_API_URL = "https://www.chronogolf.com/marketplace/v2/teetimes"
+
+# Mutable API key for MemberSports (can be refreshed)
 _api_key = "A9814038-9E19-4683-B171-5A06B39147FC"
 
 COURSES = [
-    # Denver Municipal
-    {"club_id": 3660, "course_id": 4711, "name": "City Park", "config_type": 1, "group_id": 1},
-    {"club_id": 3691, "course_id": 4756, "name": "Evergreen", "config_type": 1, "group_id": 1},
-    {"club_id": 3713, "course_id": 4770, "name": "Harvard Gulch", "config_type": 1, "group_id": 1},
-    {"club_id": 3629, "course_id": 20573, "name": "Kennedy", "config_type": 1, "group_id": 1},
-    {"club_id": 3755, "course_id": 4827, "name": "Overland Park", "config_type": 1, "group_id": 1},
-    {"club_id": 3831, "course_id": 4928, "name": "Wellshire", "config_type": 1, "group_id": 1},
-    {"club_id": 3833, "course_id": 4932, "name": "Willis Case", "config_type": 1, "group_id": 1},
-    # Foothills
-    {"club_id": 3697, "course_id": 4758, "name": "Foothills Executive 9", "config_type": 0, "group_id": 3},
-    {"club_id": 3697, "course_id": 4757, "name": "Foothills Par 3", "config_type": 0, "group_id": 3},
+    # Denver Municipal (MemberSports)
+    {"provider": "membersports", "club_id": 3660, "course_id": 4711, "name": "City Park", "config_type": 1, "group_id": 1},
+    {"provider": "membersports", "club_id": 3691, "course_id": 4756, "name": "Evergreen", "config_type": 1, "group_id": 1},
+    {"provider": "membersports", "club_id": 3713, "course_id": 4770, "name": "Harvard Gulch", "config_type": 1, "group_id": 1},
+    {"provider": "membersports", "club_id": 3629, "course_id": 20573, "name": "Kennedy", "config_type": 1, "group_id": 1},
+    {"provider": "membersports", "club_id": 3755, "course_id": 4827, "name": "Overland Park", "config_type": 1, "group_id": 1},
+    {"provider": "membersports", "club_id": 3831, "course_id": 4928, "name": "Wellshire", "config_type": 1, "group_id": 1},
+    {"provider": "membersports", "club_id": 3833, "course_id": 4932, "name": "Willis Case", "config_type": 1, "group_id": 1},
+    # Foothills (MemberSports)
+    {"provider": "membersports", "club_id": 3697, "course_id": 4758, "name": "Foothills Executive 9", "config_type": 0, "group_id": 3},
+    {"provider": "membersports", "club_id": 3697, "course_id": 4757, "name": "Foothills Par 3", "config_type": 0, "group_id": 3},
+    # South Suburban (Chronogolf)
+    {"provider": "chronogolf", "course_id": "482fb33a-fa4a-48fb-85e1-e0492fe39d1a", "name": "SSG 18 Hole Course"},
+    {"provider": "chronogolf", "course_id": "68c1a9d5-f402-4d54-a1c5-991363899bc8", "name": "SSG 9 Hole Par 3"},
 ]
 
 def get_headers():
@@ -73,7 +80,7 @@ def minutes_to_time(minutes: int) -> str:
         hours = 12
     return f"{hours}:{mins:02d} {period}"
 
-async def fetch_tee_times(club_id: int, course_id: int, date: str, config_type: int = 1, group_id: int = 1, retry: bool = True):
+async def fetch_membersports_tee_times(club_id: int, course_id: int, date: str, config_type: int = 1, group_id: int = 1, retry: bool = True):
     payload = {
         "configurationTypeId": config_type,
         "date": date,
@@ -83,29 +90,62 @@ async def fetch_tee_times(club_id: int, course_id: int, date: str, config_type: 
         "groupSheetTypeId": 0
     }
     async with httpx.AsyncClient() as client:
-        resp = await client.post(API_URL, json=payload, headers=get_headers())
+        resp = await client.post(MEMBERSPORTS_API_URL, json=payload, headers=get_headers())
         
         # If auth failed, try refreshing the key
         if resp.status_code in (401, 403) and retry:
             print(f"Auth failed ({resp.status_code}), refreshing API key...")
             if await refresh_api_key():
-                return await fetch_tee_times(club_id, course_id, date, config_type, group_id, retry=False)
+                return await fetch_membersports_tee_times(club_id, course_id, date, config_type, group_id, retry=False)
         
         return resp.json()
 
-async def get_available_times(club_id: int, course_id: int, course_name: str, date: str, config_type: int = 1, group_id: int = 1):
-    data = await fetch_tee_times(club_id, course_id, date, config_type, group_id)
+async def fetch_chronogolf_tee_times(course_id: str, date: str):
+    params = {
+        "start_date": date,
+        "course_ids": course_id,
+        "page": 1
+    }
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(CHRONOGOLF_API_URL, params=params)
+        return resp.json()
+
+def parse_time_to_minutes(time_str: str) -> int:
+    """Convert time string like '9:35' or '14:30' to minutes from midnight."""
+    parts = time_str.split(':')
+    hours = int(parts[0])
+    mins = int(parts[1]) if len(parts) > 1 else 0
+    return hours * 60 + mins
+
+async def get_available_times(course: dict, date: str):
+    """Unified function to get available times from any provider."""
+    provider = course.get("provider", "membersports")
+    
+    if provider == "membersports":
+        return await get_membersports_times(course, date)
+    elif provider == "chronogolf":
+        return await get_chronogolf_times(course, date)
+    else:
+        return []
+
+async def get_membersports_times(course: dict, date: str):
+    data = await fetch_membersports_tee_times(
+        course["club_id"], 
+        course["course_id"], 
+        date,
+        course.get("config_type", 1),
+        course.get("group_id", 1)
+    )
     available = []
     if not isinstance(data, list):
         return available
     for slot in data:
         for item in slot.get("items", []):
-            # Filter by course and check availability (playerCount < 4 means spots available)
-            if item.get("golfCourseId") == course_id and item.get("playerCount", 4) < 4:
+            if item.get("golfCourseId") == course["course_id"] and item.get("playerCount", 4) < 4:
                 spots_left = 4 - item.get("playerCount", 0)
                 available.append({
-                    "course_id": course_id,
-                    "course_name": item.get("name", course_name),
+                    "course_id": course["course_id"],
+                    "course_name": item.get("name", course["name"]),
                     "date": date,
                     "time_minutes": slot["teeTime"],
                     "time_display": minutes_to_time(slot["teeTime"]),
@@ -114,4 +154,27 @@ async def get_available_times(club_id: int, course_id: int, course_name: str, da
                     "holes": item.get("golfCourseNumberOfHoles", 18),
                     "scraped_at": datetime.utcnow().isoformat()
                 })
+    return available
+
+async def get_chronogolf_times(course: dict, date: str):
+    data = await fetch_chronogolf_tee_times(course["course_id"], date)
+    available = []
+    if not isinstance(data, dict) or "teetimes" not in data:
+        return available
+    for tt in data["teetimes"]:
+        # Only include times for this specific course
+        if tt.get("course", {}).get("uuid") != course["course_id"]:
+            continue
+        time_minutes = parse_time_to_minutes(tt["start_time"])
+        available.append({
+            "course_id": course["course_id"],
+            "course_name": tt.get("course", {}).get("name", course["name"]),
+            "date": tt.get("date", date),
+            "time_minutes": time_minutes,
+            "time_display": minutes_to_time(time_minutes),
+            "spots_available": tt.get("max_player_size", 4),
+            "price": tt.get("default_price", {}).get("green_fee", 0),
+            "holes": tt.get("course", {}).get("holes", 18),
+            "scraped_at": datetime.utcnow().isoformat()
+        })
     return available
