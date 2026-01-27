@@ -97,8 +97,12 @@ h1 {
 }
 
 .alert-status {
-  margin-top: 12px;
+  margin-top: 16px;
   color: #4ade80;
+}
+
+.alert-form .alert-status {
+  margin: 16px 0 0 0;
 }
 
 .tee-times {
