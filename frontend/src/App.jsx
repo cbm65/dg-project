@@ -62,7 +62,8 @@ function App() {
           setAlertStatus('')
         }, 3000)
       } else {
-        setAlertStatus('Error creating alert')
+        const err = await res.json()
+        setAlertStatus(err.detail || 'Error creating alert')
       }
     } catch {
       setAlertStatus('Error creating alert')
