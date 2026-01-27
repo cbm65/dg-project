@@ -134,9 +134,23 @@ async def fetch_ezlinks_tee_times(course_id: int, date: str):
         "p06": 1,
         "p07": False
     }
+    headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json; charset=UTF-8",
+        "Origin": "https://cityofaurora.ezlinksgolf.com",
+        "Referer": "https://cityofaurora.ezlinksgolf.com/index.html",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
     async with httpx.AsyncClient() as client:
-        resp = await client.post(EZLINKS_API_URL, json=payload)
-        return resp.json()
+        resp = await client.post(EZLINKS_API_URL, json=payload, headers=headers)
+        if resp.status_code != 200:
+            print(f"ezlinks error: {resp.status_code} - {resp.text[:200]}")
+            return {}
+        try:
+            return resp.json()
+        except:
+            print(f"ezlinks JSON parse error: {resp.text[:200]}")
+            return {}
 
 def parse_time_to_minutes(time_str: str) -> int:
     """Convert time string like '9:35' or '14:30' to minutes from midnight."""
