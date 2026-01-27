@@ -35,8 +35,9 @@ function App() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const createAlert = async () => {
-    if (!alertPhone) {
-      setAlertStatus('Please enter your phone number')
+    const digits = alertPhone.replace(/\D/g, '')
+    if (digits.length !== 10 && digits.length !== 11) {
+      setAlertStatus('Please enter a valid 10-digit phone number')
       return
     }
     try {
