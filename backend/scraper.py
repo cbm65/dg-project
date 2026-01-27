@@ -10,9 +10,6 @@ APP_BASE_URL = "https://app.membersports.com"
 # Chronogolf config
 CHRONOGOLF_API_URL = "https://www.chronogolf.com/marketplace/v2/teetimes"
 
-# ezlinks config
-EZLINKS_API_URL = "https://cityofaurora.ezlinksgolf.com/api/search/search"
-
 # Mutable API key for MemberSports (can be refreshed)
 _api_key = "A9814038-9E19-4683-B171-5A06B39147FC"
 
@@ -33,12 +30,6 @@ COURSES = [
     {"provider": "chronogolf", "course_id": "68c1a9d5-f402-4d54-a1c5-991363899bc8", "name": "SSG 9 Hole Par 3", "booking_slug": "south-suburban-golf-club"},
     # Lone Tree (Chronogolf)
     {"provider": "chronogolf", "course_id": "001a7f2d-2c20-4bd9-8f91-3df9d051f737", "name": "Lone Tree 18 Hole", "booking_slug": "lone-tree-golf-club-hotel"},
-    # Aurora (ezlinks)
-    {"provider": "ezlinks", "course_id": 19197, "name": "Saddle Rock"},
-    {"provider": "ezlinks", "course_id": 6386, "name": "Aurora Hills"},
-    {"provider": "ezlinks", "course_id": 6516, "name": "Springhill"},
-    {"provider": "ezlinks", "course_id": 6474, "name": "Meadow Hills"},
-    {"provider": "ezlinks", "course_id": 19921, "name": "Murphy Creek"},
 ]
 
 def get_headers():
@@ -121,37 +112,6 @@ async def fetch_chronogolf_tee_times(course_id: str, date: str):
         resp = await client.get(CHRONOGOLF_API_URL, params=params)
         return resp.json()
 
-async def fetch_ezlinks_tee_times(course_id: int, date: str):
-    # Format date as MM/DD/YYYY
-    parts = date.split('-')
-    formatted_date = f"{parts[1]}/{parts[2]}/{parts[0]}"
-    payload = {
-        "p01": [course_id],
-        "p02": formatted_date,
-        "p03": "5:00 AM",
-        "p04": "9:00 PM",
-        "p05": 0,
-        "p06": 1,
-        "p07": False
-    }
-    headers = {
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json; charset=UTF-8",
-        "Origin": "https://cityofaurora.ezlinksgolf.com",
-        "Referer": "https://cityofaurora.ezlinksgolf.com/index.html",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(EZLINKS_API_URL, json=payload, headers=headers)
-        if resp.status_code != 200:
-            print(f"ezlinks error: {resp.status_code} - {resp.text[:200]}")
-            return {}
-        try:
-            return resp.json()
-        except:
-            print(f"ezlinks JSON parse error: {resp.text[:200]}")
-            return {}
-
 def parse_time_to_minutes(time_str: str) -> int:
     """Convert time string like '9:35' or '14:30' to minutes from midnight."""
     parts = time_str.split(':')
@@ -167,8 +127,6 @@ async def get_available_times(course: dict, date: str):
         return await get_membersports_times(course, date)
     elif provider == "chronogolf":
         return await get_chronogolf_times(course, date)
-    elif provider == "ezlinks":
-        return await get_ezlinks_times(course, date)
     else:
         return []
 
@@ -222,50 +180,3 @@ async def get_chronogolf_times(course: dict, date: str):
             "scraped_at": datetime.utcnow().isoformat()
         })
     return available
-
-async def get_ezlinks_times(course: dict, date: str):
-    data = await fetch_ezlinks_tee_times(course["course_id"], date)
-    available = []
-    if not isinstance(data, dict) or "r06" not in data:
-        return available
-    
-    # Group by time to avoid duplicates (ezlinks returns multiple rate types per time)
-    seen_times = set()
-    for tt in data["r06"]:
-        # Only include times for this specific course
-        if tt.get("r07") != course["course_id"]:
-            continue
-        
-        time_str = tt.get("r24", "")  # e.g., "10:05 AM"
-        if time_str in seen_times:
-            continue
-        seen_times.add(time_str)
-        
-        time_minutes = parse_time_to_minutes_12hr(time_str)
-        available.append({
-            "course_id": course["course_id"],
-            "course_name": course["name"],
-            "date": date,
-            "time_minutes": time_minutes,
-            "time_display": time_str,
-            "spots_available": tt.get("r14", 4),
-            "price": tt.get("r08", 0),
-            "holes": 18,
-            "scraped_at": datetime.utcnow().isoformat()
-        })
-    return available
-
-def parse_time_to_minutes_12hr(time_str: str) -> int:
-    """Convert 12-hour time string like '10:05 AM' to minutes from midnight."""
-    try:
-        parts = time_str.replace(':', ' ').split()
-        hours = int(parts[0])
-        mins = int(parts[1])
-        period = parts[2].upper() if len(parts) > 2 else "AM"
-        if period == "PM" and hours != 12:
-            hours += 12
-        if period == "AM" and hours == 12:
-            hours = 0
-        return hours * 60 + mins
-    except:
-        return 0
