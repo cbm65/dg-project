@@ -40,7 +40,9 @@ async def check_alerts():
         alerts = db.query(Alert).filter(Alert.active == True, Alert.notified_at == None, Alert.date >= date.today().isoformat()).all()
         print(f"Found {len(alerts)} active alerts")
         for alert in alerts:
-            course = next((c for c in COURSES if c["club_id"] == alert.club_id), None)
+            course = next((c for c in COURSES if c["club_id"] == alert.club_id and c["name"] == alert.course_name), None)
+            if not course:
+                course = next((c for c in COURSES if c["club_id"] == alert.club_id), None)
             if not course:
                 print(f"Course not found for alert {alert.id}")
                 continue
@@ -49,7 +51,9 @@ async def check_alerts():
                 alert.club_id, 
                 course["course_id"], 
                 alert.course_name, 
-                alert.date
+                alert.date,
+                course.get("config_type", 1),
+                course.get("group_id", 1)
             )
             matching = [t for t in times if alert.time_start <= t["time_minutes"] <= alert.time_end and t["spots_available"] >= alert.min_spots]
             print(f"Found {len(matching)} matching times")
@@ -119,9 +123,13 @@ async def get_courses():
 
 @app.get("/api/tee-times/{club_id}/{course_id}/{date_str}")
 async def get_tee_times(club_id: int, course_id: int, date_str: str):
-    course = next((c for c in COURSES if c["club_id"] == club_id), None)
+    course = next((c for c in COURSES if c["club_id"] == club_id and c["course_id"] == course_id), None)
+    if not course:
+        course = next((c for c in COURSES if c["club_id"] == club_id), None)
     course_name = course["name"] if course else "Unknown"
-    return await get_available_times(club_id, course_id, course_name, date_str)
+    config_type = course.get("config_type", 1) if course else 1
+    group_id = course.get("group_id", 1) if course else 1
+    return await get_available_times(club_id, course_id, course_name, date_str, config_type, group_id)
 
 @app.post("/api/alerts")
 async def create_alert(alert: AlertCreate, db = Depends(get_db)):
@@ -143,9 +151,18 @@ async def create_alert(alert: AlertCreate, db = Depends(get_db)):
         raise HTTPException(status_code=400, detail="You already have an alert for this exact request")
     
     # Check if matching tee times already exist
-    course = next((c for c in COURSES if c["club_id"] == alert.club_id), None)
+    course = next((c for c in COURSES if c["club_id"] == alert.club_id and c["name"] == alert.course_name), None)
+    if not course:
+        course = next((c for c in COURSES if c["club_id"] == alert.club_id), None)
     if course:
-        times = await get_available_times(alert.club_id, course["course_id"], alert.course_name, alert.date)
+        times = await get_available_times(
+            alert.club_id, 
+            course["course_id"], 
+            alert.course_name, 
+            alert.date,
+            course.get("config_type", 1),
+            course.get("group_id", 1)
+        )
         matching = [t for t in times if alert.time_start <= t["time_minutes"] <= alert.time_end and t["spots_available"] >= alert.min_spots]
         if matching:
             raise HTTPException(status_code=400, detail="There are already tee time(s) that match this request")

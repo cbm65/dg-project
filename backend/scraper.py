@@ -10,13 +10,17 @@ APP_BASE_URL = "https://app.membersports.com"
 _api_key = "A9814038-9E19-4683-B171-5A06B39147FC"
 
 COURSES = [
-    {"club_id": 3660, "course_id": 4711, "name": "City Park"},
-    {"club_id": 3691, "course_id": 4756, "name": "Evergreen"},
-    {"club_id": 3713, "course_id": 4770, "name": "Harvard Gulch"},
-    {"club_id": 3629, "course_id": 20573, "name": "Kennedy"},
-    {"club_id": 3755, "course_id": 4827, "name": "Overland Park"},
-    {"club_id": 3831, "course_id": 4928, "name": "Wellshire"},
-    {"club_id": 3833, "course_id": 4932, "name": "Willis Case"},
+    # Denver Municipal
+    {"club_id": 3660, "course_id": 4711, "name": "City Park", "config_type": 1, "group_id": 1},
+    {"club_id": 3691, "course_id": 4756, "name": "Evergreen", "config_type": 1, "group_id": 1},
+    {"club_id": 3713, "course_id": 4770, "name": "Harvard Gulch", "config_type": 1, "group_id": 1},
+    {"club_id": 3629, "course_id": 20573, "name": "Kennedy", "config_type": 1, "group_id": 1},
+    {"club_id": 3755, "course_id": 4827, "name": "Overland Park", "config_type": 1, "group_id": 1},
+    {"club_id": 3831, "course_id": 4928, "name": "Wellshire", "config_type": 1, "group_id": 1},
+    {"club_id": 3833, "course_id": 4932, "name": "Willis Case", "config_type": 1, "group_id": 1},
+    # Foothills
+    {"club_id": 3697, "course_id": 4758, "name": "Foothills Executive 9", "config_type": 0, "group_id": 3},
+    {"club_id": 3697, "course_id": 4757, "name": "Foothills Par 3", "config_type": 0, "group_id": 3},
 ]
 
 def get_headers():
@@ -69,11 +73,11 @@ def minutes_to_time(minutes: int) -> str:
         hours = 12
     return f"{hours}:{mins:02d} {period}"
 
-async def fetch_tee_times(club_id: int, course_id: int, date: str, retry: bool = True):
+async def fetch_tee_times(club_id: int, course_id: int, date: str, config_type: int = 1, group_id: int = 1, retry: bool = True):
     payload = {
-        "configurationTypeId": 1,
+        "configurationTypeId": config_type,
         "date": date,
-        "golfClubGroupId": 1,
+        "golfClubGroupId": group_id,
         "golfClubId": club_id,
         "golfCourseId": course_id,
         "groupSheetTypeId": 0
@@ -85,22 +89,22 @@ async def fetch_tee_times(club_id: int, course_id: int, date: str, retry: bool =
         if resp.status_code in (401, 403) and retry:
             print(f"Auth failed ({resp.status_code}), refreshing API key...")
             if await refresh_api_key():
-                return await fetch_tee_times(club_id, course_id, date, retry=False)
+                return await fetch_tee_times(club_id, course_id, date, config_type, group_id, retry=False)
         
         return resp.json()
 
-async def get_available_times(club_id: int, course_id: int, course_name: str, date: str):
-    data = await fetch_tee_times(club_id, course_id, date)
+async def get_available_times(club_id: int, course_id: int, course_name: str, date: str, config_type: int = 1, group_id: int = 1):
+    data = await fetch_tee_times(club_id, course_id, date, config_type, group_id)
     available = []
     if not isinstance(data, list):
         return available
     for slot in data:
         for item in slot.get("items", []):
             # Filter by course and check availability (playerCount < 4 means spots available)
-            if item.get("golfClubId") == club_id and item.get("playerCount", 4) < 4:
+            if item.get("golfCourseId") == course_id and item.get("playerCount", 4) < 4:
                 spots_left = 4 - item.get("playerCount", 0)
                 available.append({
-                    "course_id": club_id,
+                    "course_id": course_id,
                     "course_name": item.get("name", course_name),
                     "date": date,
                     "time_minutes": slot["teeTime"],
