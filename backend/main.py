@@ -51,7 +51,7 @@ async def check_alerts():
                 alert.course_name, 
                 alert.date
             )
-            matching = [t for t in times if alert.time_start <= t["time_minutes"] <= alert.time_end]
+            matching = [t for t in times if alert.time_start <= t["time_minutes"] <= alert.time_end and t["spots_available"] >= alert.min_spots]
             print(f"Found {len(matching)} matching times")
             if matching:
                 time_list = ", ".join([t["time_display"] for t in matching[:5]])
@@ -110,6 +110,7 @@ class AlertCreate(BaseModel):
     date: str
     time_start: int
     time_end: int
+    min_spots: int = 1
 
 # Routes
 @app.get("/api/courses")
@@ -133,7 +134,8 @@ async def create_alert(alert: AlertCreate, db = Depends(get_db)):
         course_name=alert.course_name,
         date=alert.date,
         time_start=alert.time_start,
-        time_end=alert.time_end
+        time_end=alert.time_end,
+        min_spots=alert.min_spots
     )
     db.add(db_alert)
     db.commit()

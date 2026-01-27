@@ -20,6 +20,7 @@ class Alert(Base):
     date = Column(String, nullable=False)
     time_start = Column(Integer, nullable=False)  # minutes from midnight
     time_end = Column(Integer, nullable=False)
+    min_spots = Column(Integer, default=1)
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     notified_at = Column(DateTime, nullable=True)

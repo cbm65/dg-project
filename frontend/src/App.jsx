@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-const API_URL = import.meta.env.PROD
-  ? 'https://api.denvertts303.com'
+const API_URL = import.meta.env.PROD 
+  ? 'https://api.denvertts303.com' 
   : 'http://localhost:8000'
 
 const TIMES = [
@@ -26,11 +26,12 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-
+  
   const [showAlertForm, setShowAlertForm] = useState(false)
   const [alertPhone, setAlertPhone] = useState('')
   const [alertTimeStart, setAlertTimeStart] = useState(420)
   const [alertTimeEnd, setAlertTimeEnd] = useState(600)
+  const [alertMinSpots, setAlertMinSpots] = useState(1)
   const [alertStatus, setAlertStatus] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -50,7 +51,8 @@ function App() {
           course_name: selectedCourse.name,
           date: date,
           time_start: alertTimeStart,
-          time_end: alertTimeEnd
+          time_end: alertTimeEnd,
+          min_spots: alertMinSpots
         })
       })
       if (res.ok) {
@@ -100,27 +102,27 @@ function App() {
   return (
     <div className="app">
       <h1>⛳ Denver Golf Tee Times</h1>
-
+      
       <div className="controls">
-        <select
-          value={selectedCourse?.club_id || ''}
+        <select 
+          value={selectedCourse?.club_id || ''} 
           onChange={(e) => setSelectedCourse(courses.find(c => c.club_id === +e.target.value))}
         >
           {courses.map(c => (
             <option key={c.club_id} value={c.club_id}>{c.name}</option>
           ))}
         </select>
-
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
+        
+        <input 
+          type="date" 
+          value={date} 
+          onChange={(e) => setDate(e.target.value)} 
         />
-
+        
         <button onClick={() => setRefreshKey(k => k + 1)}>Refresh</button>
       </div>
 
-      <button
+      <button 
         className="alert-toggle"
         onClick={() => setShowAlertForm(!showAlertForm)}
       >
@@ -146,6 +148,11 @@ function App() {
             <select value={alertTimeEnd} onChange={(e) => setAlertTimeEnd(+e.target.value)}>
               {TIMES.map(t => (
                 <option key={t.minutes} value={t.minutes}>{t.label}</option>
+              ))}
+            </select>
+            <select value={alertMinSpots} onChange={(e) => setAlertMinSpots(+e.target.value)}>
+              {[1, 2, 3, 4].map(n => (
+                <option key={n} value={n}>{n}+ spots</option>
               ))}
             </select>
             <button onClick={createAlert}>Create Alert</button>
