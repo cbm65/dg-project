@@ -1,7 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, date
 from apscheduler.schedulers.background import BackgroundScheduler
 from twilio.rest import Client
 import os
@@ -9,21 +10,6 @@ import asyncio
 
 from scraper import COURSES, get_available_times
 from models import SessionLocal, Alert
-
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "https://www.denvertts303.com",
-        "https://denvertts303.com"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Twilio setup
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -51,7 +37,7 @@ async def check_alerts():
     print("Checking alerts...")
     db = SessionLocal()
     try:
-        alerts = db.query(Alert).filter(Alert.active == True, Alert.notified_at == None).all()
+        alerts = db.query(Alert).filter(Alert.active == True, Alert.notified_at == None, Alert.date >= date.today().isoformat()).all()
         print(f"Found {len(alerts)} active alerts")
         for alert in alerts:
             course = next((c for c in COURSES if c["club_id"] == alert.club_id), None)
@@ -82,18 +68,39 @@ async def check_alerts():
 # Background scheduler
 scheduler = BackgroundScheduler()
 
-@app.on_event("startup")
-def start_scheduler():
-    def run_check():
-        print("Scheduler triggered")
-        asyncio.run(check_alerts())
+def run_check():
+    print("Scheduler triggered")
+    asyncio.run(check_alerts())
+
+@asynccontextmanager
+async def lifespan(app):
     scheduler.add_job(run_check, 'interval', minutes=5)
     scheduler.start()
     print("Scheduler started")
-
-@app.on_event("shutdown")
-def stop_scheduler():
+    yield
     scheduler.shutdown()
+
+app = FastAPI(lifespan=lifespan)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://www.denvertts303.com",
+        "https://denvertts303.com"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Pydantic models
 class AlertCreate(BaseModel):
@@ -116,45 +123,36 @@ async def get_tee_times(club_id: int, course_id: int, date_str: str):
     return await get_available_times(club_id, course_id, course_name, date_str)
 
 @app.post("/api/alerts")
-async def create_alert(alert: AlertCreate):
-    db = SessionLocal()
-    try:
-        db_alert = Alert(
-            phone=alert.phone,
-            club_id=alert.club_id,
-            course_name=alert.course_name,
-            date=alert.date,
-            time_start=alert.time_start,
-            time_end=alert.time_end
-        )
-        db.add(db_alert)
-        db.commit()
-        db.refresh(db_alert)
-        return {"id": db_alert.id, "message": "Alert created"}
-    finally:
-        db.close()
+async def create_alert(alert: AlertCreate, db = Depends(get_db)):
+    digits = ''.join(c for c in alert.phone if c.isdigit())
+    if len(digits) < 10 or len(digits) > 11:
+        raise HTTPException(status_code=400, detail="Invalid phone number")
+    db_alert = Alert(
+        phone=alert.phone,
+        club_id=alert.club_id,
+        course_name=alert.course_name,
+        date=alert.date,
+        time_start=alert.time_start,
+        time_end=alert.time_end
+    )
+    db.add(db_alert)
+    db.commit()
+    db.refresh(db_alert)
+    return {"id": db_alert.id, "message": "Alert created"}
 
 @app.get("/api/alerts/{phone}")
-async def get_alerts(phone: str):
-    db = SessionLocal()
-    try:
-        alerts = db.query(Alert).filter(Alert.phone == phone, Alert.active == True).all()
-        return [{"id": a.id, "course_name": a.course_name, "date": a.date, "time_start": a.time_start, "time_end": a.time_end} for a in alerts]
-    finally:
-        db.close()
+async def get_alerts(phone: str, db = Depends(get_db)):
+    alerts = db.query(Alert).filter(Alert.phone == phone, Alert.active == True).all()
+    return [{"id": a.id, "course_name": a.course_name, "date": a.date, "time_start": a.time_start, "time_end": a.time_end} for a in alerts]
 
 @app.delete("/api/alerts/{alert_id}")
-async def delete_alert(alert_id: int):
-    db = SessionLocal()
-    try:
-        alert = db.query(Alert).filter(Alert.id == alert_id).first()
-        if not alert:
-            raise HTTPException(status_code=404, detail="Alert not found")
-        alert.active = False
-        db.commit()
-        return {"message": "Alert deleted"}
-    finally:
-        db.close()
+async def delete_alert(alert_id: int, db = Depends(get_db)):
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    alert.active = False
+    db.commit()
+    return {"message": "Alert deleted"}
 
 @app.post("/api/test-alerts")
 async def test_alerts():

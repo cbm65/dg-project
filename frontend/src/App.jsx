@@ -1,19 +1,9 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-const API_URL = import.meta.env.PROD 
-  ? 'https://api.denvertts303.com' 
+const API_URL = import.meta.env.PROD
+  ? 'https://api.denvertts303.com'
   : 'http://localhost:8000'
-
-const COURSES = [
-  { club_id: 3660, course_id: 4711, name: "City Park" },
-  { club_id: 3691, course_id: 4756, name: "Evergreen" },
-  { club_id: 3713, course_id: 4770, name: "Harvard Gulch" },
-  { club_id: 3629, course_id: 20573, name: "Kennedy" },
-  { club_id: 3755, course_id: 4827, name: "Overland Park" },
-  { club_id: 3831, course_id: 4928, name: "Wellshire" },
-  { club_id: 3833, course_id: 4932, name: "Willis Case" },
-]
 
 const TIMES = [
   { label: "6:00 AM", minutes: 360 },
@@ -31,30 +21,18 @@ const TIMES = [
 ]
 
 function App() {
+  const [courses, setCourses] = useState([])
   const [teeTimes, setTeeTimes] = useState([])
   const [loading, setLoading] = useState(false)
-  const [selectedCourse, setSelectedCourse] = useState(COURSES[3])
+  const [selectedCourse, setSelectedCourse] = useState(null)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  
+
   const [showAlertForm, setShowAlertForm] = useState(false)
   const [alertPhone, setAlertPhone] = useState('')
   const [alertTimeStart, setAlertTimeStart] = useState(420)
   const [alertTimeEnd, setAlertTimeEnd] = useState(600)
   const [alertStatus, setAlertStatus] = useState('')
-
-  const fetchTeeTimes = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch(
-        `${API_URL}/api/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/${date}`
-      )
-      const data = await res.json()
-      setTeeTimes(data)
-    } catch (err) {
-      console.error(err)
-    }
-    setLoading(false)
-  }
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const createAlert = async () => {
     if (!alertPhone) {
@@ -83,7 +61,7 @@ function App() {
       } else {
         setAlertStatus('Error creating alert')
       }
-    } catch (err) {
+    } catch {
       setAlertStatus('Error creating alert')
     }
   }
@@ -96,33 +74,52 @@ function App() {
   }
 
   useEffect(() => {
-    fetchTeeTimes()
-  }, [selectedCourse, date])
+    fetch(`${API_URL}/api/courses`).then(r => r.json()).then(data => {
+      setCourses(data)
+      setSelectedCourse(data[3]) // Kennedy as default
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!selectedCourse) return
+    const fetchTimes = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(`${API_URL}/api/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/${date}`)
+        setTeeTimes(await res.json())
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchTimes()
+  }, [selectedCourse, date, refreshKey])
 
   return (
     <div className="app">
       <h1>⛳ Denver Golf Tee Times</h1>
-      
+
       <div className="controls">
-        <select 
-          value={selectedCourse.club_id} 
-          onChange={(e) => setSelectedCourse(COURSES.find(c => c.club_id === +e.target.value))}
+        <select
+          value={selectedCourse?.club_id || ''}
+          onChange={(e) => setSelectedCourse(courses.find(c => c.club_id === +e.target.value))}
         >
-          {COURSES.map(c => (
+          {courses.map(c => (
             <option key={c.club_id} value={c.club_id}>{c.name}</option>
           ))}
         </select>
-        
-        <input 
-          type="date" 
-          value={date} 
-          onChange={(e) => setDate(e.target.value)} 
+
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
         />
-        
-        <button onClick={fetchTeeTimes}>Refresh</button>
+
+        <button onClick={() => setRefreshKey(k => k + 1)}>Refresh</button>
       </div>
 
-      <button 
+      <button
         className="alert-toggle"
         onClick={() => setShowAlertForm(!showAlertForm)}
       >
@@ -131,7 +128,7 @@ function App() {
 
       {showAlertForm && (
         <div className="alert-form">
-          <p>Get a text when tee times at <strong>{selectedCourse.name}</strong> on <strong>{date}</strong> become available:</p>
+          <p>Get a text when tee times at <strong>{selectedCourse?.name}</strong> on <strong>{date}</strong> become available:</p>
           <div className="alert-fields">
             <input
               type="tel"
