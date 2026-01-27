@@ -1,8 +1,13 @@
 import httpx
+import re
 from datetime import datetime
 
 API_URL = "https://api.membersports.com/api/v1/golfclubs/onlineBookingTeeTimes"
-API_KEY = "A9814038-9E19-4683-B171-5A06B39147FC"
+NGSW_URL = "https://app.membersports.com/ngsw.json"
+APP_BASE_URL = "https://app.membersports.com"
+
+# Mutable API key that can be refreshed
+_api_key = "A9814038-9E19-4683-B171-5A06B39147FC"
 
 COURSES = [
     {"club_id": 3660, "course_id": 4711, "name": "City Park"},
@@ -14,12 +19,45 @@ COURSES = [
     {"club_id": 3833, "course_id": 4932, "name": "Willis Case"},
 ]
 
-HEADERS = {
-    "Accept": "application/json",
-    "Content-Type": "application/json",
-    "x-api-key": API_KEY,
-    "Referer": "https://app.membersports.com/",
-}
+def get_headers():
+    return {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "x-api-key": _api_key,
+        "Referer": "https://app.membersports.com/",
+    }
+
+async def refresh_api_key():
+    """Fetch new API key from MemberSports frontend."""
+    global _api_key
+    try:
+        async with httpx.AsyncClient() as client:
+            # Get ngsw.json to find main.js filename
+            resp = await client.get(NGSW_URL)
+            ngsw = resp.json()
+            
+            # Find main-*.js file
+            main_js = next((url for url in ngsw.get("assetGroups", [{}])[0].get("urls", []) if url.startswith("/main-")), None)
+            if not main_js:
+                print("Could not find main.js in ngsw.json")
+                return False
+            
+            # Fetch main.js
+            js_resp = await client.get(f"{APP_BASE_URL}{main_js}")
+            js_content = js_resp.text
+            
+            # Find UUID pattern (API key)
+            matches = re.findall(r'[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}', js_content, re.IGNORECASE)
+            if matches:
+                _api_key = matches[0]
+                print(f"API key refreshed: {_api_key}")
+                return True
+            else:
+                print("Could not find API key in main.js")
+                return False
+    except Exception as e:
+        print(f"Error refreshing API key: {e}")
+        return False
 
 def minutes_to_time(minutes: int) -> str:
     hours = minutes // 60
@@ -31,7 +69,7 @@ def minutes_to_time(minutes: int) -> str:
         hours = 12
     return f"{hours}:{mins:02d} {period}"
 
-async def fetch_tee_times(club_id: int, course_id: int, date: str):
+async def fetch_tee_times(club_id: int, course_id: int, date: str, retry: bool = True):
     payload = {
         "configurationTypeId": 1,
         "date": date,
@@ -41,7 +79,14 @@ async def fetch_tee_times(club_id: int, course_id: int, date: str):
         "groupSheetTypeId": 0
     }
     async with httpx.AsyncClient() as client:
-        resp = await client.post(API_URL, json=payload, headers=HEADERS)
+        resp = await client.post(API_URL, json=payload, headers=get_headers())
+        
+        # If auth failed, try refreshing the key
+        if resp.status_code in (401, 403) and retry:
+            print(f"Auth failed ({resp.status_code}), refreshing API key...")
+            if await refresh_api_key():
+                return await fetch_tee_times(club_id, course_id, date, retry=False)
+        
         return resp.json()
 
 async def get_available_times(club_id: int, course_id: int, course_name: str, date: str):
