@@ -38,6 +38,7 @@ COURSES = [
     {"provider": "ezlinks", "course_id": 6386, "name": "Aurora Hills"},
     {"provider": "ezlinks", "course_id": 6516, "name": "Springhill"},
     {"provider": "ezlinks", "course_id": 6474, "name": "Meadow Hills"},
+    {"provider": "ezlinks", "course_id": 19921, "name": "Murphy Creek"},
 ]
 
 def get_headers():
