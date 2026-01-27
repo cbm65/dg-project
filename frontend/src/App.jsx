@@ -76,11 +76,6 @@ function App() {
         `https://www.chronogolf.com/club/${selectedCourse.booking_slug}?date=${date}`,
         '_blank'
       )
-    } else if (selectedCourse.provider === 'cpsgolf') {
-      window.open(
-        `https://${selectedCourse.site}.cps.golf/onlineresweb/search-teetime`,
-        '_blank'
-      )
     } else {
       window.open(
         `https://app.membersports.com/tee-times/${selectedCourse.club_id}/${selectedCourse.course_id}/0/1/0`,
