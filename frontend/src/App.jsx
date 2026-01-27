@@ -153,7 +153,7 @@ function App() {
             </select>
             <select value={alertMinSpots} onChange={(e) => setAlertMinSpots(+e.target.value)}>
               {[1, 2, 3, 4].map(n => (
-                <option key={n} value={n}>{n}+ spots</option>
+                <option key={n} value={n}>{n === 4 ? '4 spots' : `${n}+ spots`}</option>
               ))}
             </select>
             <button onClick={createAlert}>Create Alert</button>

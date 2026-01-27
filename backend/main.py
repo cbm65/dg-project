@@ -129,6 +129,19 @@ async def create_alert(alert: AlertCreate, db = Depends(get_db)):
     if len(digits) < 10 or len(digits) > 11:
         raise HTTPException(status_code=400, detail="Invalid phone number")
     
+    # Check for duplicate alert
+    existing = db.query(Alert).filter(
+        Alert.phone == alert.phone,
+        Alert.club_id == alert.club_id,
+        Alert.date == alert.date,
+        Alert.time_start == alert.time_start,
+        Alert.time_end == alert.time_end,
+        Alert.min_spots == alert.min_spots,
+        Alert.active == True
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="You already have an alert for this exact request")
+    
     # Check if matching tee times already exist
     course = next((c for c in COURSES if c["club_id"] == alert.club_id), None)
     if course:
