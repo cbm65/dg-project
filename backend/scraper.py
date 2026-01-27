@@ -1,5 +1,6 @@
 import httpx
 import re
+import uuid
 from datetime import datetime
 
 # MemberSports config
@@ -9,6 +10,15 @@ APP_BASE_URL = "https://app.membersports.com"
 
 # Chronogolf config
 CHRONOGOLF_API_URL = "https://www.chronogolf.com/marketplace/v2/teetimes"
+
+# CPS Golf config
+CPS_GOLF_SITES = {
+    "fossiltrace": {
+        "base_url": "https://fossiltrace.cps.golf",
+        "website_id": "b6c22f3a-944a-46e9-020e-08da90168fb2",
+        "course_ids": "1,3,2"
+    }
+}
 
 # Mutable API key for MemberSports (can be refreshed)
 _api_key = "A9814038-9E19-4683-B171-5A06B39147FC"
@@ -37,6 +47,8 @@ COURSES = [
     {"provider": "chronogolf", "course_id": "6a1ad175-7c4f-4692-a58f-7879e72ed9e9", "name": "Littleton Golf & Tennis", "booking_slug": "littleton-golf-tennis-club"},
     # Family Sports (Chronogolf)
     {"provider": "chronogolf", "course_id": "34b44f75-a475-4ec1-b5d3-e3089b66cf86", "name": "Family Sports 9 Hole", "booking_slug": "family-sports-golf-course"},
+    # Fossil Trace (CPS Golf)
+    {"provider": "cpsgolf", "site": "fossiltrace", "name": "Fossil Trace"},
 ]
 
 def get_headers():
@@ -119,6 +131,60 @@ async def fetch_chronogolf_tee_times(course_id: str, date: str):
         resp = await client.get(CHRONOGOLF_API_URL, params=params)
         return resp.json()
 
+async def fetch_cpsgolf_tee_times(site: str, date: str):
+    """Fetch tee times from CPS Golf sites like Fossil Trace."""
+    config = CPS_GOLF_SITES.get(site)
+    if not config:
+        return {}
+    
+    # Convert YYYY-MM-DD to "Sat Jan 31 2026" format
+    date_obj = datetime.strptime(date, "%Y-%m-%d")
+    formatted_date = date_obj.strftime("%a %b %d %Y")
+    
+    params = {
+        "searchDate": formatted_date,
+        "holes": 0,
+        "numberOfPlayer": 0,
+        "courseIds": config["course_ids"],
+        "searchTimeType": 0,
+        "transactionId": str(uuid.uuid4()),
+        "teeOffTimeMin": 0,
+        "teeOffTimeMax": 23,
+        "isChangeTeeOffTime": "true",
+        "teeSheetSearchView": 5,
+        "classCode": "R",
+        "defaultOnlineRate": "N",
+        "isUseCapacityPricing": "false",
+        "memberStoreId": 1,
+        "searchType": 1
+    }
+    headers = {
+        "Accept": "application/json, text/plain, */*",
+        "client-id": "onlineresweb",
+        "x-siteid": "1",
+        "x-websiteid": config["website_id"],
+        "x-terminalid": "3",
+        "x-componentid": "1",
+        "x-moduleid": "7",
+        "x-productid": "1",
+        "x-ismobile": "false",
+        "x-timezoneid": "America/Denver",
+        "x-timezone-offset": "420",
+        "Referer": f"{config['base_url']}/onlineresweb/search-teetime",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+    }
+    async with httpx.AsyncClient() as client:
+        url = f"{config['base_url']}/onlineres/onlineapi/api/v1/onlinereservation/TeeTimes"
+        resp = await client.get(url, params=params, headers=headers)
+        if resp.status_code != 200:
+            print(f"cpsgolf error: {resp.status_code} - {resp.text[:200]}")
+            return {}
+        try:
+            return resp.json()
+        except:
+            print(f"cpsgolf JSON parse error: {resp.text[:200]}")
+            return {}
+
 def parse_time_to_minutes(time_str: str) -> int:
     """Convert time string like '9:35' or '14:30' to minutes from midnight."""
     parts = time_str.split(':')
@@ -134,6 +200,8 @@ async def get_available_times(course: dict, date: str):
         return await get_membersports_times(course, date)
     elif provider == "chronogolf":
         return await get_chronogolf_times(course, date)
+    elif provider == "cpsgolf":
+        return await get_cpsgolf_times(course, date)
     else:
         return []
 
@@ -184,6 +252,40 @@ async def get_chronogolf_times(course: dict, date: str):
             "spots_available": tt.get("max_player_size", 4),
             "price": tt.get("default_price", {}).get("green_fee", 0),
             "holes": tt.get("course", {}).get("holes", 18),
+            "scraped_at": datetime.utcnow().isoformat()
+        })
+    return available
+
+async def get_cpsgolf_times(course: dict, date: str):
+    data = await fetch_cpsgolf_tee_times(course["site"], date)
+    available = []
+    if not isinstance(data, dict) or "content" not in data:
+        return available
+    for tt in data["content"]:
+        # Parse ISO datetime to get time
+        start_time = tt.get("startTime", "")  # e.g., "2026-01-31T13:50:00"
+        if not start_time:
+            continue
+        time_parts = start_time.split("T")[1].split(":")
+        time_minutes = int(time_parts[0]) * 60 + int(time_parts[1])
+        
+        # participants is max spots, we show all available times
+        spots = tt.get("participants", 4)
+        
+        # Get price from first shItemPrices if available
+        price = 0
+        if tt.get("shItemPrices"):
+            price = tt["shItemPrices"][0].get("displayPrice", 0)
+        
+        available.append({
+            "course_id": tt.get("courseId"),
+            "course_name": f"{course['name']} ({tt.get('courseName', '')})",
+            "date": date,
+            "time_minutes": time_minutes,
+            "time_display": minutes_to_time(time_minutes),
+            "spots_available": spots,
+            "price": price,
+            "holes": tt.get("holes", 18),
             "scraped_at": datetime.utcnow().isoformat()
         })
     return available
