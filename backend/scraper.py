@@ -33,6 +33,8 @@ COURSES = [
     {"provider": "chronogolf", "course_id": "68c1a9d5-f402-4d54-a1c5-991363899bc8", "name": "SSG 9 Hole Par 3", "booking_slug": "south-suburban-golf-club"},
     # Lone Tree (Chronogolf)
     {"provider": "chronogolf", "course_id": "001a7f2d-2c20-4bd9-8f91-3df9d051f737", "name": "Lone Tree 18 Hole", "booking_slug": "lone-tree-golf-club-hotel"},
+    # Littleton (Chronogolf)
+    {"provider": "chronogolf", "course_id": "6a1ad175-7c4f-4692-a58f-7879e72ed9e9", "name": "Littleton Golf & Tennis", "booking_slug": "littleton-golf-tennis-club"},
 ]
 
 def get_headers():
