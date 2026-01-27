@@ -73,7 +73,7 @@ function App() {
   const openBooking = () => {
     if (selectedCourse.provider === 'chronogolf') {
       window.open(
-        `https://www.chronogolf.com/club/south-suburban-golf-club?date=${date}`,
+        `https://www.chronogolf.com/club/${selectedCourse.booking_slug}?date=${date}`,
         '_blank'
       )
     } else {

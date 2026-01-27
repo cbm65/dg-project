@@ -26,8 +26,10 @@ COURSES = [
     {"provider": "membersports", "club_id": 3697, "course_id": 4758, "name": "Foothills Executive 9", "config_type": 0, "group_id": 3},
     {"provider": "membersports", "club_id": 3697, "course_id": 4757, "name": "Foothills Par 3", "config_type": 0, "group_id": 3},
     # South Suburban (Chronogolf)
-    {"provider": "chronogolf", "course_id": "482fb33a-fa4a-48fb-85e1-e0492fe39d1a", "name": "SSG 18 Hole Course"},
-    {"provider": "chronogolf", "course_id": "68c1a9d5-f402-4d54-a1c5-991363899bc8", "name": "SSG 9 Hole Par 3"},
+    {"provider": "chronogolf", "course_id": "482fb33a-fa4a-48fb-85e1-e0492fe39d1a", "name": "SSG 18 Hole Course", "booking_slug": "south-suburban-golf-club"},
+    {"provider": "chronogolf", "course_id": "68c1a9d5-f402-4d54-a1c5-991363899bc8", "name": "SSG 9 Hole Par 3", "booking_slug": "south-suburban-golf-club"},
+    # Lone Tree (Chronogolf)
+    {"provider": "chronogolf", "course_id": "001a7f2d-2c20-4bd9-8f91-3df9d051f737", "name": "Lone Tree 18 Hole", "booking_slug": "lone-tree-golf-club-hotel"},
 ]
 
 def get_headers():
