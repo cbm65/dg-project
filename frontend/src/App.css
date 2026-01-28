@@ -57,7 +57,6 @@ h1 {
   padding: 16px;
   border-radius: 10px;
   margin-bottom: 20px;
-  overflow: hidden;
 }
 
 .alert-form p {
@@ -100,8 +99,6 @@ h1 {
 .alert-status {
   margin-top: 16px;
   color: #4ade80;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
 }
 
 .alert-form .alert-status {
