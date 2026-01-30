@@ -41,6 +41,10 @@ function App() {
       setAlertStatus('Please enter a valid 10-digit phone number')
       return
     }
+    if (alertTimeStart >= alertTimeEnd) {
+      setAlertStatus('Start time must be before end time')
+      return
+    }
     try {
       const res = await fetch(`${API_URL}/api/alerts`, {
         method: 'POST',

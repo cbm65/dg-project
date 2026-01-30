@@ -34,7 +34,7 @@ def send_sms(to: str, body: str):
         return False
 
 async def check_alerts():
-    print("Checking alerts..")
+    print("Checking alerts...")
     db = SessionLocal()
     try:
         alerts = db.query(Alert).filter(Alert.active == True, Alert.notified_at == None, Alert.date >= date.today().isoformat()).all()
@@ -125,7 +125,7 @@ async def create_alert(alert: AlertCreate, db = Depends(get_db)):
     digits = ''.join(c for c in alert.phone if c.isdigit())
     if len(digits) < 10 or len(digits) > 11:
         raise HTTPException(status_code=400, detail="Invalid phone number")
-
+    
     # Check for duplicate alert
     existing = db.query(Alert).filter(
         Alert.phone == alert.phone,
@@ -138,7 +138,7 @@ async def create_alert(alert: AlertCreate, db = Depends(get_db)):
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="You already have an alert for this exact request")
-
+    
     # Check if matching tee times already exist
     course = next((c for c in COURSES if c["name"] == alert.course_name), None)
     if course:
@@ -146,7 +146,7 @@ async def create_alert(alert: AlertCreate, db = Depends(get_db)):
         matching = [t for t in times if alert.time_start <= t["time_minutes"] <= alert.time_end and t["spots_available"] >= alert.min_spots]
         if matching:
             raise HTTPException(status_code=400, detail="There are already tee time(s) that match this request")
-
+    
     db_alert = Alert(
         phone=alert.phone,
         club_id=alert.club_id,
