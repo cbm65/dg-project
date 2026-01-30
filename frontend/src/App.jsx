@@ -180,7 +180,7 @@ function App() {
               <div key={i} className="tee-time" onClick={openBooking}>
                 <div className="time">{t.time_display}</div>
                 <div className="details">
-                  <span className="course-type">{t.course_name.split(' ').slice(-2).join(' ')}</span>
+                  <span className="course-type">{t.holes} holes</span>
                   <span className="spots">{t.spots_available} spots</span>
                 </div>
               </div>
