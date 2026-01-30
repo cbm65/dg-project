@@ -17,7 +17,7 @@ COURSES = [
     # Denver Municipal (MemberSports)
     {"provider": "membersports", "club_id": 3660, "course_id": 4711, "name": "City Park", "config_type": 1, "group_id": 1},
     {"provider": "membersports", "club_id": 3691, "course_id": 4756, "name": "Evergreen", "config_type": 1, "group_id": 1},
-    {"provider": "membersports", "club_id": 3713, "course_id": 4770, "name": "Harvard Gulch", "config_type": 1, "group_id": 1},
+    {"provider": "membersports", "club_id": 3713, "course_id": 4781, "name": "Harvard Gulch", "config_type": 0, "group_id": 1},
     {"provider": "membersports", "club_id": 3629, "course_id": 20573, "name": "Kennedy", "config_type": 1, "group_id": 1},
     {"provider": "membersports", "club_id": 3755, "course_id": 4827, "name": "Overland Park", "config_type": 1, "group_id": 1},
     {"provider": "membersports", "club_id": 3831, "course_id": 4928, "name": "Wellshire", "config_type": 1, "group_id": 1},
