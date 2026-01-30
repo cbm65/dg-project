@@ -138,7 +138,7 @@ function App() {
         className="alert-toggle"
         onClick={() => setShowAlertForm(!showAlertForm)}
       >
-        🔔 {showAlertForm ? 'Hide Alert Form' : 'Set Up Alert'}
+        🔔 {showAlertForm ? 'Hide Alerts' : 'Set Up Alert'}
       </button>
 
       {showAlertForm && (
