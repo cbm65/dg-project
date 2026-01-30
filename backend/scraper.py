@@ -152,6 +152,9 @@ async def get_membersports_times(course: dict, date: str):
         for item in slot.get("items", []):
             if item.get("golfCourseId") == course["course_id"] and item.get("playerCount", 4) < 4:
                 spots_left = 4 - item.get("playerCount", 0)
+                # holesRequirementTypeId: 1 = 9 holes, 2 = 18 holes
+                holes_type = item.get("holesRequirementTypeId", 2)
+                holes = 9 if holes_type == 1 else 18
                 available.append({
                     "course_id": course["course_id"],
                     "course_name": item.get("name", course["name"]),
@@ -160,7 +163,7 @@ async def get_membersports_times(course: dict, date: str):
                     "time_display": minutes_to_time(slot["teeTime"]),
                     "spots_available": spots_left,
                     "price": item.get("price", 0),
-                    "holes": item.get("golfCourseNumberOfHoles", 18),
+                    "holes": holes,
                     "scraped_at": datetime.utcnow().isoformat()
                 })
     return available
