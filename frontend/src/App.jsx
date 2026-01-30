@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-const API_URL = import.meta.env.PROD 
-  ? 'https://api.denvertts303.com' 
+const API_URL = import.meta.env.PROD
+  ? 'https://api.denvertts303.com'
   : 'http://localhost:8000'
 
 const TIMES = [
@@ -26,7 +26,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  
+
   const [showAlertForm, setShowAlertForm] = useState(false)
   const [alertPhone, setAlertPhone] = useState('')
   const [alertTimeStart, setAlertTimeStart] = useState(420)
@@ -114,27 +114,27 @@ function App() {
   return (
     <div className="app">
       <h1>⛳ Denver Golf Tee Times</h1>
-      
+
       <div className="controls">
-        <select 
-          value={selectedCourse?.name || ''} 
+        <select
+          value={selectedCourse?.name || ''}
           onChange={(e) => setSelectedCourse(courses.find(c => c.name === e.target.value))}
         >
           {courses.map(c => (
             <option key={c.name} value={c.name}>{c.name}</option>
           ))}
         </select>
-        
-        <input 
-          type="date" 
-          value={date} 
-          onChange={(e) => setDate(e.target.value)} 
+
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
         />
-        
+
         <button onClick={() => setRefreshKey(k => k + 1)}>Refresh</button>
       </div>
 
-      <button 
+      <button
         className="alert-toggle"
         onClick={() => setShowAlertForm(!showAlertForm)}
       >
@@ -190,7 +190,7 @@ function App() {
               </div>
             ))}
           </div>
-          <p className="booking-hint">Tap a time to book on Denver Golf</p>
+          <p className="booking-hint">Tap a time to book</p>
         </>
       )}
     </div>
